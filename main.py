@@ -5,29 +5,36 @@ import urllib.request
 import os.path
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+from textblob import TextBlob
 
 def main():
     url = "http://www.metrolyrics.com/top100.html"
     if not lyrics_html_exist(url):
         download_webpage(url)
-    content = read_cached_webpage(url)
 
-    soup = BeautifulSoup(content, 'html.parser')
-
-    found = soup.find_all(lyrics_link)
-    links = [l['href'] for l in found]
+    links = get_lyrics_links(read_cached_webpage(url))
     for l in links:
         if not lyrics_html_exist(l):
             download_webpage(l)
         
         if not lyrics_text_exist(l):
-            content = read_cached_webpage(l)
-            soup = BeautifulSoup(content, 'html.parser')
-            lyrics = soup.find_all(class_="verse")
-            content = ""
-            for lyr in lyrics:
-                content += lyr.get_text()
-            write_lyric_text(content, l)
+            write_lyric_text(get_lyric_text(read_cached_webpage(l)), l)
+
+        # analyze!
+
+def get_lyrics_links(html_content):
+    soup = BeautifulSoup(html_content, 'html.parser')
+    found = soup.find_all(lyrics_link)
+    links = [l['href'] for l in found]
+    return links
+
+def get_lyric_text(html_content):
+    soup = BeautifulSoup(html_content, 'html.parser')
+    lyrics = soup.find_all(class_="verse")
+    content = ""
+    for lyr in lyrics:
+        content += lyr.get_text()        
+    return content
 
 def lyrics_link(tag):
     return tag.name == "a" and tag.has_attr('class') and ("song-link" in tag['class'] or "title" in tag['class'])
