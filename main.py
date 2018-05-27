@@ -11,6 +11,8 @@ from textblob import TextBlob
 
 import matplotlib.pyplot as plt
 
+import numpy as np
+
 
 def main():
     index_url = "http://www.metrolyrics.com/top100.html"
@@ -31,12 +33,26 @@ def main():
         blob = TextBlob(lyric_text)
         la = LyricsAnalysis(blob.sentiment, blob.word_counts, blob.tags)
         analysis.append(la)
-        x = int(la.sentiment.polarity * 100)
-        y = int(la.sentiment.subjectivity * 100)
 
-        plt.plot([x, y])
-        plt.ylabel("some numbers")
-        plt.show()
+    data = tuple([a.sentiment.polarity for a in analysis])
+    create_bar_chart(data, "Polarity", "Songs", "Lyric Polarity by Song")
+
+    data = tuple([a.sentiment.subjectivity for a in analysis])
+    create_bar_chart(data, "Subjectivity", "Songs", "Lyric Subjectivity by Song")
+
+
+def create_bar_chart(data, ylabel, xlabel, title):
+    n_groups = len(data)
+    _, ax = plt.subplots()
+    index = np.arange(n_groups)
+    bar_width = 0.35
+    opacity = 0.4
+    ax.bar(index, data, bar_width, alpha=opacity, color="b", label="Song")
+    ax.set_xlabel(ylabel)
+    ax.set_ylabel(xlabel)
+    ax.set_title(title)
+    ax.legend()
+    plt.show()
 
 
 class LyricsAnalysis:
