@@ -41,6 +41,7 @@ def main():
         "Songs",
         "Lyric Polarity by Song",
     )
+
     fig2 = build_bar_chart(
         tuple([a.sentiment.subjectivity for a in analysis]),
         "Subjectivity",
@@ -61,8 +62,7 @@ def main():
         "Word Count Analysis",
         labels=[word[0] for word in top_words],
     )
-
-    fig3.show()
+    
 
 
 def build_bar_chart(data, ylabel, xlabel, title, labels=None):
