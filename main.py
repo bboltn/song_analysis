@@ -23,6 +23,7 @@ def main():
     links = get_lyrics_links(read_cached_webpage(index_url))
 
     analysis = []
+    all_lyrics = ""
     for song_url in links:
         if not lyrics_html_exist(song_url):
             download_webpage(song_url)
@@ -31,31 +32,29 @@ def main():
             write_lyric_text(get_lyric_text(read_cached_webpage(song_url)), song_url)
 
         lyric_text = read_cached_text(song_url)
-        blob = TextBlob(lyric_text)
-        la = LyricsAnalysis(blob.sentiment, blob.word_counts, blob.tags, lyric_text)
-        analysis.append(la)
+        analysis.append(LyricsContainer(song_url, lyric_text))
+        all_lyrics += lyric_text + "\n"
 
-    fig1 = build_bar_chart(
-        tuple([a.sentiment.polarity for a in analysis]),
+    build_bar_chart(
+        tuple([a.blob.sentiment.polarity for a in analysis]),
         "Polarity",
         "Songs",
         "Lyric Polarity by Song",
     )
 
-    fig2 = build_bar_chart(
-        tuple([a.sentiment.subjectivity for a in analysis]),
+    build_bar_chart(
+        tuple([a.blob.sentiment.subjectivity for a in analysis]),
         "Subjectivity",
         "Songs",
         "Lyric Subjectivity by Song",
     )
 
-    all_lyrics = "\n".join([a.lyric_text for a in analysis])
-    blob = TextBlob(all_lyrics)
+    all_lyrics_blob = TextBlob(all_lyrics)
     top_words = sorted(
-        blob.word_counts.items(), reverse=True, key=operator.itemgetter(1)
+        all_lyrics_blob.word_counts.items(), reverse=True, key=operator.itemgetter(1)
     )[0:10]
 
-    fig3 = build_bar_chart(
+    build_bar_chart(
         tuple([word[1] for word in top_words]),
         "Word",
         "Count",
@@ -64,7 +63,7 @@ def main():
     )
 
     data = {}  # tag: count
-    for t in blob.tags:
+    for t in all_lyrics_blob.tags:
         if t[1] in data:
             data[t[1]] += 1
         else:
@@ -72,14 +71,43 @@ def main():
 
     top_tags = sorted(data.items(), reverse=True, key=operator.itemgetter(1))[0:10]
 
-    fig4 = build_bar_chart(
+    build_bar_chart(
         tuple([tag[1] for tag in top_tags]),
         "Tag",
         "Count",
         "Most used Tags",
         labels=[tag[0] for tag in top_tags],
     )
-    fig4.show()
+
+    # polarity is whether the expressed opinion in the text is positive, negative, or
+    # neutral
+
+    polarity_sort = sorted(
+        analysis, key=lambda x: x.blob.sentiment.polarity, reverse=True
+    )[0:10]
+    subjectivity_sort = sorted(
+        analysis, key=lambda x: x.blob.sentiment.subjectivity, reverse=True
+    )[0:10]
+
+    build_bar_chart(
+        tuple([a.blob.sentiment.polarity for a in polarity_sort]),
+        "Songs",
+        "Polarity",
+        "Most positive songs",
+        labels=[a.title() for a in polarity_sort],
+    )
+
+    build_bar_chart(
+        tuple([a.blob.sentiment.subjectivity for a in subjectivity_sort]),
+        "Songs",
+        "Subjectivity",
+        "Most Subjective songs",
+        labels=[a.title() for a in subjectivity_sort],
+    )
+    plt.show()
+
+    # Most negative (polarity) songs
+    # Least Subjective (subjectivity) songs
 
 
 def build_bar_chart(data, ylabel, xlabel, title, labels=None):
@@ -94,24 +122,22 @@ def build_bar_chart(data, ylabel, xlabel, title, labels=None):
     ax.set_title(title)
     ax.set_xticks(index)
     if labels:
-        ax.set_xticklabels(labels)
-    return plt
+        ax.set_xticklabels(labels, rotation="vertical")
 
 
-class LyricsAnalysis:
+class LyricsContainer:
 
-    def __init__(self, sentiment, word_counts, tags, lyric_text):
-        self.sentiment = sentiment
-        self.word_counts = word_counts
-        self.tags = tags
+    def __init__(self, url, lyric_text):
+        self.blob = TextBlob(lyric_text)
+        self.url = url
         self.lyric_text = lyric_text
 
-    def __str__(self):
-        return "pol: %s, sub: %s, wc len: %s, tags len: %s" % (
-            self.sentiment.polarity,
-            self.sentiment.subjectivity,
-            len(self.word_counts),
-            len(self.tags),
+    def title(self):
+        return (
+            filename_from_url(self.url)
+            .replace("-", " ")
+            .replace(".html", "")[0:20]
+            .capitalize()
         )
 
 
