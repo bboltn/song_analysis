@@ -62,7 +62,24 @@ def main():
         "Word Count Analysis",
         labels=[word[0] for word in top_words],
     )
-    
+
+    data = {}  # tag: count
+    for t in blob.tags:
+        if t[1] in data:
+            data[t[1]] += 1
+        else:
+            data[t[1]] = 1
+
+    top_tags = sorted(data.items(), reverse=True, key=operator.itemgetter(1))[0:10]
+
+    fig4 = build_bar_chart(
+        tuple([tag[1] for tag in top_tags]),
+        "Tag",
+        "Count",
+        "Most used Tags",
+        labels=[tag[0] for tag in top_tags],
+    )
+    fig4.show()
 
 
 def build_bar_chart(data, ylabel, xlabel, title, labels=None):
