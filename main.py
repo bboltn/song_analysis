@@ -12,6 +12,7 @@ from textblob import TextBlob
 import matplotlib.pyplot as plt
 
 import numpy as np
+import operator
 
 
 def main():
@@ -31,36 +32,62 @@ def main():
 
         lyric_text = read_cached_text(song_url)
         blob = TextBlob(lyric_text)
-        la = LyricsAnalysis(blob.sentiment, blob.word_counts, blob.tags)
+        la = LyricsAnalysis(blob.sentiment, blob.word_counts, blob.tags, lyric_text)
         analysis.append(la)
 
-    data = tuple([a.sentiment.polarity for a in analysis])
-    create_bar_chart(data, "Polarity", "Songs", "Lyric Polarity by Song")
+    fig1 = build_bar_chart(
+        tuple([a.sentiment.polarity for a in analysis]),
+        "Polarity",
+        "Songs",
+        "Lyric Polarity by Song",
+    )
+    fig2 = build_bar_chart(
+        tuple([a.sentiment.subjectivity for a in analysis]),
+        "Subjectivity",
+        "Songs",
+        "Lyric Subjectivity by Song",
+    )
 
-    data = tuple([a.sentiment.subjectivity for a in analysis])
-    create_bar_chart(data, "Subjectivity", "Songs", "Lyric Subjectivity by Song")
+    all_lyrics = "\n".join([a.lyric_text for a in analysis])
+    blob = TextBlob(all_lyrics)
+    top_words = sorted(
+        blob.word_counts.items(), reverse=True, key=operator.itemgetter(1)
+    )[0:10]
+
+    fig3 = build_bar_chart(
+        tuple([word[1] for word in top_words]),
+        "Word",
+        "Count",
+        "Word Count Analysis",
+        labels=[word[0] for word in top_words],
+    )
+
+    fig3.show()
 
 
-def create_bar_chart(data, ylabel, xlabel, title):
+def build_bar_chart(data, ylabel, xlabel, title, labels=None):
     n_groups = len(data)
     _, ax = plt.subplots()
     index = np.arange(n_groups)
     bar_width = 0.35
     opacity = 0.4
-    ax.bar(index, data, bar_width, alpha=opacity, color="b", label="Song")
+    ax.bar(index, data, bar_width, alpha=opacity, color="b")
     ax.set_xlabel(ylabel)
     ax.set_ylabel(xlabel)
     ax.set_title(title)
-    ax.legend()
-    plt.show()
+    ax.set_xticks(index)
+    if labels:
+        ax.set_xticklabels(labels)
+    return plt
 
 
 class LyricsAnalysis:
 
-    def __init__(self, sentiment, word_counts, tags):
+    def __init__(self, sentiment, word_counts, tags, lyric_text):
         self.sentiment = sentiment
         self.word_counts = word_counts
         self.tags = tags
+        self.lyric_text = lyric_text
 
     def __str__(self):
         return "pol: %s, sub: %s, wc len: %s, tags len: %s" % (
