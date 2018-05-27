@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
+"""Sentiment and other analysis of top 100 song lyrics"""
 
 import sys
 import urllib.request
+from urllib.parse import urlparse
 import os.path
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
+
 from textblob import TextBlob
+
+import matplotlib.pyplot as plt
+
 
 def main():
     index_url = "http://www.metrolyrics.com/top100.html"
@@ -18,19 +23,24 @@ def main():
     for song_url in links:
         if not lyrics_html_exist(song_url):
             download_webpage(song_url)
-        
+
         if not lyrics_text_exist(song_url):
-            write_lyric_text(
-                get_lyric_text(read_cached_webpage(song_url)),
-                song_url)
+            write_lyric_text(get_lyric_text(read_cached_webpage(song_url)), song_url)
 
         lyric_text = read_cached_text(song_url)
         blob = TextBlob(lyric_text)
         la = LyricsAnalysis(blob.sentiment, blob.word_counts, blob.tags)
         analysis.append(la)
+        x = int(la.sentiment.polarity * 100)
+        y = int(la.sentiment.subjectivity * 100)
+
+        plt.plot([x, y])
+        plt.ylabel("some numbers")
+        plt.show()
+
 
 class LyricsAnalysis:
-    # metadata, sentiment, word count matrix, part of speech tagging
+
     def __init__(self, sentiment, word_counts, tags):
         self.sentiment = sentiment
         self.word_counts = word_counts
@@ -38,8 +48,12 @@ class LyricsAnalysis:
 
     def __str__(self):
         return "pol: %s, sub: %s, wc len: %s, tags len: %s" % (
-            self.sentiment.polarity, self.sentiment.subjectivity, 
-            len(self.word_counts), len(self.tags))
+            self.sentiment.polarity,
+            self.sentiment.subjectivity,
+            len(self.word_counts),
+            len(self.tags),
+        )
+
 
 def read_cached_text(url):
     filename = filename_from_url(url)
@@ -48,35 +62,45 @@ def read_cached_text(url):
     fo.close()
     return content
 
+
 def get_lyrics_links(html_content):
-    soup = BeautifulSoup(html_content, 'html.parser')
+    soup = BeautifulSoup(html_content, "html.parser")
     found = soup.find_all(lyrics_link)
-    links = [l['href'] for l in found]
+    links = [l["href"] for l in found]
     return links
 
+
 def get_lyric_text(html_content):
-    soup = BeautifulSoup(html_content, 'html.parser')
+    soup = BeautifulSoup(html_content, "html.parser")
     lyrics = soup.find_all(class_="verse")
     content = ""
     for lyr in lyrics:
         content += lyr.get_text()
     return content
 
+
 def lyrics_link(tag):
-    return tag.name == "a" and tag.has_attr('class') and (
-        "song-link" in tag['class'] or "title" in tag['class'])
+    return (
+        tag.name == "a"
+        and tag.has_attr("class")
+        and ("song-link" in tag["class"] or "title" in tag["class"])
+    )
+
 
 def filename_from_url(url):
     parsed = urlparse(url)
     return os.path.basename(parsed.path)
 
+
 def lyrics_html_exist(url):
     filename = filename_from_url(url)
     return os.path.exists("lyrics/" + filename)
 
+
 def lyrics_text_exist(url):
     filename = filename_from_url(url)
     return os.path.exists("lyrics_text/" + filename + ".txt")
+
 
 def download_webpage(url):
     filename = filename_from_url(url)
@@ -86,6 +110,7 @@ def download_webpage(url):
     fo.write(content)
     fo.close()
 
+
 def read_cached_webpage(url):
     filename = filename_from_url(url)
     fo = open("lyrics/" + filename)
@@ -93,12 +118,14 @@ def read_cached_webpage(url):
     fo.close()
     return content
 
+
 def write_lyric_text(content, url):
     filename = filename_from_url(url)
     fo = open("lyrics_text/" + filename + ".txt", "w")
     fo.write(content)
     fo.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
     sys.exit(0)
