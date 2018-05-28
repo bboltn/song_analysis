@@ -29,10 +29,11 @@ def main():
             download_webpage(song_url)
 
         if not lyrics_text_exist(song_url):
-            write_lyric_text(get_lyric_text(read_cached_webpage(song_url)), song_url)
+            title, lyric_text = get_lyric_text(read_cached_webpage(song_url))
+            write_lyric_text(title, lyric_text, song_url)
 
-        lyric_text = read_cached_text(song_url)
-        analysis.append(LyricsContainer(song_url, lyric_text))
+        title, lyric_text = read_cached_text(song_url)
+        analysis.append(LyricsContainer(title, song_url, lyric_text))
         all_lyrics += lyric_text + "\n"
 
     build_bar_chart(
@@ -94,7 +95,7 @@ def main():
         "Songs",
         "Polarity",
         "Most positive songs",
-        labels=[a.title() for a in polarity_sort],
+        labels=[a.title for a in polarity_sort],
     )
 
     build_bar_chart(
@@ -102,7 +103,7 @@ def main():
         "Songs",
         "Subjectivity",
         "Most Subjective songs",
-        labels=[a.title() for a in subjectivity_sort],
+        labels=[a.title for a in subjectivity_sort],
     )
     plt.show()
 
@@ -127,26 +128,19 @@ def build_bar_chart(data, ylabel, xlabel, title, labels=None):
 
 class LyricsContainer:
 
-    def __init__(self, url, lyric_text):
+    def __init__(self, title, url, lyric_text):
+        self.title = title
         self.blob = TextBlob(lyric_text)
         self.url = url
         self.lyric_text = lyric_text
 
-    def title(self):
-        return (
-            filename_from_url(self.url)
-            .replace("-", " ")
-            .replace(".html", "")[0:20]
-            .capitalize()
-        )
-
 
 def read_cached_text(url):
     filename = filename_from_url(url)
-    fo = open("lyrics_text/" + filename + ".txt")
-    content = fo.read()
-    fo.close()
-    return content
+    with open("lyrics_text/" + filename + ".txt") as fo:
+        title = fo.readline()
+        content = fo.read()
+        return title, content
 
 
 def get_lyrics_links(html_content):
@@ -162,7 +156,8 @@ def get_lyric_text(html_content):
     content = ""
     for lyr in lyrics:
         content += lyr.get_text()
-    return content
+    found = soup.find_all("h1")
+    return found[0].get_text().replace("Lyrics", "").strip(), content
 
 
 def lyrics_link(tag):
@@ -205,10 +200,10 @@ def read_cached_webpage(url):
     return content
 
 
-def write_lyric_text(content, url):
+def write_lyric_text(title, content, url):
     filename = filename_from_url(url)
     fo = open("lyrics_text/" + filename + ".txt", "w")
-    fo.write(content)
+    fo.write(title + "\n" + content)
     fo.close()
 
 
