@@ -55,16 +55,15 @@ def main():
     all_lyrics_blob = TextBlob(all_lyrics)
     top_words = sorted(
         all_lyrics_blob.word_counts.items(), reverse=True, key=operator.itemgetter(1)
-    )[0:10]
-
-    pos_lookup = get_pos()
+    )
+    top_words = [word for word in top_words if len(word[0]) > 4]
 
     build_bar_chart(
-        tuple([word[1] for word in top_words]),
+        tuple([word[1] for word in top_words[0:10]]),
         "Word",
         "Count",
-        "Word Count Analysis",
-        labels=[word[0] for word in top_words],
+        "Most used words where len > 4",
+        labels=[word[0] for word in top_words[0:10]],
     )
 
     data = {}  # tag: count
@@ -75,7 +74,7 @@ def main():
             data[t[1]] = 1
 
     top_tags = sorted(data.items(), reverse=True, key=operator.itemgetter(1))[0:10]
-
+    pos_lookup = get_pos()
     build_bar_chart(
         tuple([tag[1] for tag in top_tags]),
         "Tag",
