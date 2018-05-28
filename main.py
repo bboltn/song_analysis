@@ -18,11 +18,27 @@ import csv
 
 
 def main():
-    index_url = "http://www.metrolyrics.com/top100.html"
-    if not lyrics_html_exist(index_url):
-        download_webpage(index_url)
 
-    links = get_lyrics_links(read_cached_webpage(index_url))
+    index_urls = [
+        "http://www.metrolyrics.com/top100.html",
+        "http://www.metrolyrics.com/top100-pop.html",
+        "http://www.metrolyrics.com/top100-rock.html",
+        "http://www.metrolyrics.com/top100-hiphop.html",
+        "http://www.metrolyrics.com/top100-metal.html",
+        "http://www.metrolyrics.com/top100-electronic.html",
+        "http://www.metrolyrics.com/top100-rb.html",
+        "http://www.metrolyrics.com/top100-jazz.html",
+        "http://www.metrolyrics.com/top100-country.html",
+        "http://www.metrolyrics.com/top100-folk.html",
+        "http://www.metrolyrics.com/top100-indie.html",
+    ]
+
+    links = []
+    for index_url in index_urls:
+        if not lyrics_html_exist(index_url):
+            download_webpage(index_url)
+
+        links.extend(get_lyrics_links(read_cached_webpage(index_url)))
 
     analysis = []
     all_lyrics = ""
@@ -106,9 +122,6 @@ def main():
         labels=[a.title() for a in subjectivity_sort],
     )
     plt.show()
-
-    # Most negative (polarity) songs
-    # Least Subjective (subjectivity) songs
 
 
 def get_pos():
