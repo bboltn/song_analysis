@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import operator
 
+import csv
+
 
 def main():
     index_url = "http://www.metrolyrics.com/top100.html"
@@ -55,6 +57,8 @@ def main():
         all_lyrics_blob.word_counts.items(), reverse=True, key=operator.itemgetter(1)
     )[0:10]
 
+    pos_lookup = get_pos()
+
     build_bar_chart(
         tuple([word[1] for word in top_words]),
         "Word",
@@ -77,11 +81,8 @@ def main():
         "Tag",
         "Count",
         "Most used Tags",
-        labels=[tag[0] for tag in top_tags],
+        labels=["%s (%s)" % (pos_lookup[tag[0]], tag[0]) for tag in top_tags],
     )
-
-    # polarity is whether the expressed opinion in the text is positive, negative, or
-    # neutral
 
     polarity_sort = sorted(
         analysis, key=lambda x: x.blob.sentiment.polarity, reverse=True
@@ -95,7 +96,7 @@ def main():
         "Songs",
         "Polarity",
         "Most positive songs",
-        labels=[a.title for a in polarity_sort],
+        labels=[a.title() for a in polarity_sort],
     )
 
     build_bar_chart(
@@ -103,7 +104,7 @@ def main():
         "Songs",
         "Subjectivity",
         "Most Subjective songs",
-        labels=[a.title for a in subjectivity_sort],
+        labels=[a.title() for a in subjectivity_sort],
     )
     plt.show()
 
@@ -111,12 +112,20 @@ def main():
     # Least Subjective (subjectivity) songs
 
 
+def get_pos():
+    pos_lookup = {}
+    with open("pos.txt") as tsv:
+        for line in csv.reader(tsv, dialect="excel-tab"):
+            pos_lookup[line[1]] = line[2]
+    return pos_lookup
+
+
 def build_bar_chart(data, ylabel, xlabel, title, labels=None):
     n_groups = len(data)
     _, ax = plt.subplots()
     index = np.arange(n_groups)
     bar_width = 0.35
-    opacity = 0.4
+    opacity = 0.5
     ax.bar(index, data, bar_width, alpha=opacity, color="b")
     ax.set_xlabel(ylabel)
     ax.set_ylabel(xlabel)
@@ -124,15 +133,21 @@ def build_bar_chart(data, ylabel, xlabel, title, labels=None):
     ax.set_xticks(index)
     if labels:
         ax.set_xticklabels(labels, rotation="vertical")
+    plt.subplots_adjust(bottom=0.4)
 
 
 class LyricsContainer:
 
     def __init__(self, title, url, lyric_text):
-        self.title = title
+        self._title = title
         self.blob = TextBlob(lyric_text)
         self.url = url
         self.lyric_text = lyric_text
+
+    def title(self):
+        if "igger" in self._title:
+            self._title = self._title.replace("igge", "****")
+        return self._title
 
 
 def read_cached_text(url):
