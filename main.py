@@ -38,11 +38,14 @@ def main():
         if not lyrics_html_exist(index_url):
             download_webpage(index_url)
 
-        links.extend(get_lyrics_links(read_cached_webpage(index_url)))
+        genre = get_genre(index_url)
+        links.extend(
+            [(l, genre) for l in get_lyrics_links(read_cached_webpage(index_url))]
+        )
 
     analysis = []
     all_lyrics = ""
-    for song_url in links:
+    for song_url, genre in links:
         if not lyrics_html_exist(song_url):
             download_webpage(song_url)
 
@@ -51,7 +54,7 @@ def main():
             write_lyric_text(title, lyric_text, song_url)
 
         title, lyric_text = read_cached_text(song_url)
-        analysis.append(LyricsContainer(title, song_url, lyric_text))
+        analysis.append(LyricsContainer(title, song_url, lyric_text, genre))
         all_lyrics += lyric_text + "\n"
 
     build_bar_chart(
@@ -150,22 +153,26 @@ def build_bar_chart(data, ylabel, xlabel, title, labels=None):
 
 class LyricsContainer:
 
-    def __init__(self, title, url, lyric_text):
+    def __init__(self, title, url, lyric_text, genre):
         self._title = title
         self.blob = TextBlob(lyric_text)
         self.url = url
         self.lyric_text = lyric_text
+        self.genre = genre
 
     def title(self):
         if "igger" in self._title:
             self._title = self._title.replace("igge", "****")
         return self._title
 
+    def __str__(self):
+        return "Title: %s, Genre: %s, URL: %s" % (self.title(), self.genre, self.url)
+
 
 def read_cached_text(url):
     filename = filename_from_url(url)
     with open("lyrics_text/" + filename + ".txt") as fo:
-        title = fo.readline()
+        title = fo.readline().replace("\n", "")
         content = fo.read()
         return title, content
 
@@ -173,8 +180,14 @@ def read_cached_text(url):
 def get_lyrics_links(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
     found = soup.find_all(lyrics_link)
-    links = [l["href"] for l in found]
-    return links
+    return [l["href"] for l in found]
+
+
+def get_genre(index_url):
+    filename = filename_from_url(index_url)
+    if "-" in filename:
+        return filename.split("-")[1].replace(".html", "")
+    return ""
 
 
 def get_lyric_text(html_content):
