@@ -16,8 +16,11 @@ import operator
 
 import csv
 
+import time
+
 
 def main():
+    start = time.time()
 
     index_urls = [
         "http://www.metrolyrics.com/top100.html",
@@ -43,6 +46,10 @@ def main():
             [(l, genre) for l in get_lyrics_links(read_cached_webpage(index_url))]
         )
 
+    start = elapsedTime(start, "A")
+
+    lyrics_by_genre = {}
+
     analysis = []
     all_lyrics = ""
     for song_url, genre in links:
@@ -55,7 +62,25 @@ def main():
 
         title, lyric_text = read_cached_text(song_url)
         analysis.append(LyricsContainer(title, song_url, lyric_text, genre))
+        if genre and genre not in lyrics_by_genre:
+            lyrics_by_genre[genre] = ""
+        if genre:
+            lyrics_by_genre[genre] += lyric_text + "\n"
         all_lyrics += lyric_text + "\n"
+
+    blobs_by_genre = []
+    for key in lyrics_by_genre.keys():
+        blobs_by_genre.append([key, TextBlob(lyrics_by_genre[key])])
+
+    build_bar_chart(
+        tuple([a[1].sentiment.polarity for a in blobs_by_genre]),
+        "Genre",
+        "Polarity",
+        "Polarity by Genre",
+        labels=[a[0] for a in blobs_by_genre],
+    )
+
+    start = elapsedTime(start, "B")
 
     build_bar_chart(
         tuple([a.blob.sentiment.polarity for a in analysis]),
@@ -64,6 +89,8 @@ def main():
         "Lyric Polarity by Song",
     )
 
+    start = elapsedTime(start, "C")
+
     build_bar_chart(
         tuple([a.blob.sentiment.subjectivity for a in analysis]),
         "Subjectivity",
@@ -71,12 +98,17 @@ def main():
         "Lyric Subjectivity by Song",
     )
 
+    start = elapsedTime(start, "D")
+
     all_lyrics_blob = TextBlob(all_lyrics)
     top_words = sorted(
         all_lyrics_blob.word_counts.items(), reverse=True, key=operator.itemgetter(1)
     )
+
+    start = elapsedTime(start, "E")
     top_words = [word for word in top_words if len(word[0]) > 4]
 
+    start = elapsedTime(start, "F")
     build_bar_chart(
         tuple([word[1] for word in top_words[0:10]]),
         "Word",
@@ -85,6 +117,9 @@ def main():
         labels=[word[0] for word in top_words[0:10]],
     )
 
+    start = elapsedTime(start, "G")
+    print("len(all_lyrics_blob.tags): %s" % len(all_lyrics_blob.tags))
+
     data = {}  # tag: count
     for t in all_lyrics_blob.tags:
         if t[1] in data:
@@ -92,7 +127,10 @@ def main():
         else:
             data[t[1]] = 1
 
+    start = elapsedTime(start, "H")
+
     top_tags = sorted(data.items(), reverse=True, key=operator.itemgetter(1))[0:10]
+    start = elapsedTime(start, "I")
     pos_lookup = get_pos()
     build_bar_chart(
         tuple([tag[1] for tag in top_tags]),
@@ -101,13 +139,16 @@ def main():
         "Most used Tags",
         labels=["%s (%s)" % (pos_lookup[tag[0]], tag[0]) for tag in top_tags],
     )
+    start = elapsedTime(start, "J")
 
     polarity_sort = sorted(
         analysis, key=lambda x: x.blob.sentiment.polarity, reverse=True
     )[0:10]
+    start = elapsedTime(start, "K")
     subjectivity_sort = sorted(
         analysis, key=lambda x: x.blob.sentiment.subjectivity, reverse=True
     )[0:10]
+    start = elapsedTime(start, "L")
 
     build_bar_chart(
         tuple([a.blob.sentiment.polarity for a in polarity_sort]),
@@ -116,6 +157,7 @@ def main():
         "Most positive songs",
         labels=[a.title() for a in polarity_sort],
     )
+    start = elapsedTime(start, "M")
 
     build_bar_chart(
         tuple([a.blob.sentiment.subjectivity for a in subjectivity_sort]),
@@ -125,6 +167,15 @@ def main():
         labels=[a.title() for a in subjectivity_sort],
     )
     plt.show()
+
+    start = elapsedTime(start, "N")
+
+
+def elapsedTime(start, label):
+    end = time.time()
+    elapsed = end - start
+    print("%s: %s" % (label, elapsed))
+    return end
 
 
 def get_pos():
@@ -149,6 +200,7 @@ def build_bar_chart(data, ylabel, xlabel, title, labels=None):
     if labels:
         ax.set_xticklabels(labels, rotation="vertical")
     plt.subplots_adjust(bottom=0.4)
+    return
 
 
 class LyricsContainer:
