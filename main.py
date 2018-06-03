@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Sentiment and other analysis of top 100 song lyrics"""
+"""Sentiment and other analysis of top 100 song lyrics
+
+TODO
+- avoid duplicate songs if song in more than one list
+- add genre info to top 10 charts
+- load info into db for faster queries
+
+"""
 
 import sys
 import urllib.request
