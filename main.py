@@ -18,22 +18,24 @@ import csv
 
 import time
 
+MISSING_LYRICS = "Unfortunately, we aren't authorized to display these lyrics"
+
 
 def main():
     start = time.time()
 
     index_urls = [
         "http://www.metrolyrics.com/top100.html",
-        "http://www.metrolyrics.com/top100-pop.html",
-        "http://www.metrolyrics.com/top100-rock.html",
-        "http://www.metrolyrics.com/top100-hiphop.html",
-        "http://www.metrolyrics.com/top100-metal.html",
-        "http://www.metrolyrics.com/top100-electronic.html",
-        "http://www.metrolyrics.com/top100-rb.html",
-        "http://www.metrolyrics.com/top100-jazz.html",
-        "http://www.metrolyrics.com/top100-country.html",
-        "http://www.metrolyrics.com/top100-folk.html",
-        "http://www.metrolyrics.com/top100-indie.html",
+        # "http://www.metrolyrics.com/top100-pop.html",
+        # "http://www.metrolyrics.com/top100-rock.html",
+        # "http://www.metrolyrics.com/top100-hiphop.html",
+        # "http://www.metrolyrics.com/top100-metal.html",
+        # "http://www.metrolyrics.com/top100-electronic.html",
+        # "http://www.metrolyrics.com/top100-rb.html",
+        # "http://www.metrolyrics.com/top100-jazz.html",
+        # "http://www.metrolyrics.com/top100-country.html",
+        # "http://www.metrolyrics.com/top100-folk.html",
+        # "http://www.metrolyrics.com/top100-indie.html",
     ]
 
     links = []
@@ -61,11 +63,15 @@ def main():
             write_lyric_text(title, lyric_text, song_url)
 
         title, lyric_text = read_cached_text(song_url)
+        if lyric_text == MISSING_LYRICS:
+            continue
+
         analysis.append(LyricsContainer(title, song_url, lyric_text, genre))
-        if genre and genre not in lyrics_by_genre:
-            lyrics_by_genre[genre] = ""
         if genre:
+            if genre not in lyrics_by_genre:
+                lyrics_by_genre[genre] = ""
             lyrics_by_genre[genre] += lyric_text + "\n"
+
         all_lyrics += lyric_text + "\n"
 
     blobs_by_genre = []
@@ -144,6 +150,8 @@ def main():
     polarity_sort = sorted(
         analysis, key=lambda x: x.blob.sentiment.polarity, reverse=True
     )[0:10]
+
+    polarity_sort_neg = sorted(analysis, key=lambda x: x.blob.sentiment.polarity)[0:10]
     start = elapsedTime(start, "K")
     subjectivity_sort = sorted(
         analysis, key=lambda x: x.blob.sentiment.subjectivity, reverse=True
@@ -156,6 +164,13 @@ def main():
         "Polarity",
         "Most positive songs",
         labels=[a.title() for a in polarity_sort],
+    )
+    build_bar_chart(
+        tuple([a.blob.sentiment.polarity for a in polarity_sort_neg]),
+        "Songs",
+        "Polarity",
+        "Most negative songs",
+        labels=[a.title() for a in polarity_sort_neg],
     )
     start = elapsedTime(start, "M")
 
