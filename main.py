@@ -2,49 +2,60 @@
 """Sentiment and other analysis of top 100 song lyrics
 
 TODO
-- avoid duplicate songs if song in more than one list
-- add genre info to top 10 charts
 - load info into db for faster queries
 
 """
 
-import sys
-import urllib.request
-from urllib.parse import urlparse
-import os.path
 from bs4 import BeautifulSoup
-
 from textblob import TextBlob
-
+from urllib.parse import urlparse
+import csv
 import matplotlib.pyplot as plt
-
 import numpy as np
 import operator
-
-import csv
-
+import os.path
+import sys
 import time
+import urllib.request
+
 
 MISSING_LYRICS = "Unfortunately, we aren't authorized to display these lyrics"
 
 
 def main():
-    start = time.time()
+    top100_report = "top100" in sys.argv
+    genre_report = "genre" in sys.argv
+    if top100_report:
+        index_urls = ["http://www.metrolyrics.com/top100.html"]
+    elif genre_report:
+        index_urls = [
+            "http://www.metrolyrics.com/top100-country.html",
+            "http://www.metrolyrics.com/top100-electronic.html",
+            "http://www.metrolyrics.com/top100-folk.html",
+            "http://www.metrolyrics.com/top100-hiphop.html",
+            "http://www.metrolyrics.com/top100-indie.html",
+            "http://www.metrolyrics.com/top100-jazz.html",
+            "http://www.metrolyrics.com/top100-metal.html",
+            "http://www.metrolyrics.com/top100-pop.html",
+            "http://www.metrolyrics.com/top100-rb.html",
+            "http://www.metrolyrics.com/top100-rock.html",
+        ]
+    else:
+        print("Help: Args <top100|genre>")
+        return
 
-    index_urls = [
-        "http://www.metrolyrics.com/top100.html",
-        # "http://www.metrolyrics.com/top100-pop.html",
-        # "http://www.metrolyrics.com/top100-rock.html",
-        # "http://www.metrolyrics.com/top100-hiphop.html",
-        # "http://www.metrolyrics.com/top100-metal.html",
-        # "http://www.metrolyrics.com/top100-electronic.html",
-        # "http://www.metrolyrics.com/top100-rb.html",
-        # "http://www.metrolyrics.com/top100-jazz.html",
-        # "http://www.metrolyrics.com/top100-country.html",
-        # "http://www.metrolyrics.com/top100-folk.html",
-        # "http://www.metrolyrics.com/top100-indie.html",
-    ]
+    analysis, all_lyrics, lyrics_by_genre = get_data(index_urls)
 
+    if genre_report:
+        generate_genre_report(lyrics_by_genre)
+
+    elif top100_report:
+        generate_top100_report(analysis, all_lyrics)
+
+    plt.show()
+
+
+def get_data(index_urls):
     links = []
     for index_url in index_urls:
         if not lyrics_html_exist(index_url):
@@ -54,8 +65,6 @@ def main():
         links.extend(
             [(l, genre) for l in get_lyrics_links(read_cached_webpage(index_url))]
         )
-
-    start = elapsedTime(start, "A")
 
     lyrics_by_genre = {}
 
@@ -81,28 +90,16 @@ def main():
 
         all_lyrics += lyric_text + "\n"
 
-    blobs_by_genre = []
-    for key in lyrics_by_genre.keys():
-        blobs_by_genre.append([key, TextBlob(lyrics_by_genre[key])])
+    return analysis, all_lyrics, lyrics_by_genre
 
-    build_bar_chart(
-        tuple([a[1].sentiment.polarity for a in blobs_by_genre]),
-        "Genre",
-        "Polarity",
-        "Polarity by Genre",
-        labels=[a[0] for a in blobs_by_genre],
-    )
 
-    start = elapsedTime(start, "B")
-
+def generate_top100_report(analysis, all_lyrics):
     build_bar_chart(
         tuple([a.blob.sentiment.polarity for a in analysis]),
         "Polarity",
         "Songs",
         "Lyric Polarity by Song",
     )
-
-    start = elapsedTime(start, "C")
 
     build_bar_chart(
         tuple([a.blob.sentiment.subjectivity for a in analysis]),
@@ -111,28 +108,22 @@ def main():
         "Lyric Subjectivity by Song",
     )
 
-    start = elapsedTime(start, "D")
-
     all_lyrics_blob = TextBlob(all_lyrics)
+
+    # Top words
     top_words = sorted(
         all_lyrics_blob.word_counts.items(), reverse=True, key=operator.itemgetter(1)
     )
-
-    start = elapsedTime(start, "E")
-    top_words = [word for word in top_words if len(word[0]) > 4]
-
-    start = elapsedTime(start, "F")
+    top_words = [word for word in top_words if len(word[0]) > 4][0:10]
     build_bar_chart(
-        tuple([word[1] for word in top_words[0:10]]),
+        tuple([word[1] for word in top_words]),
         "Word",
         "Count",
         "Most used words where len > 4",
-        labels=[word[0] for word in top_words[0:10]],
+        labels=[word[0] for word in top_words],
     )
 
-    start = elapsedTime(start, "G")
-    print("len(all_lyrics_blob.tags): %s" % len(all_lyrics_blob.tags))
-
+    # Most used tags
     data = {}  # tag: count
     for t in all_lyrics_blob.tags:
         if t[1] in data:
@@ -140,10 +131,7 @@ def main():
         else:
             data[t[1]] = 1
 
-    start = elapsedTime(start, "H")
-
     top_tags = sorted(data.items(), reverse=True, key=operator.itemgetter(1))[0:10]
-    start = elapsedTime(start, "I")
     pos_lookup = get_pos()
     build_bar_chart(
         tuple([tag[1] for tag in top_tags]),
@@ -152,18 +140,16 @@ def main():
         "Most used Tags",
         labels=["%s (%s)" % (pos_lookup[tag[0]], tag[0]) for tag in top_tags],
     )
-    start = elapsedTime(start, "J")
 
+    # Most positive or negative songs
     polarity_sort = sorted(
         analysis, key=lambda x: x.blob.sentiment.polarity, reverse=True
     )[0:10]
 
     polarity_sort_neg = sorted(analysis, key=lambda x: x.blob.sentiment.polarity)[0:10]
-    start = elapsedTime(start, "K")
     subjectivity_sort = sorted(
         analysis, key=lambda x: x.blob.sentiment.subjectivity, reverse=True
     )[0:10]
-    start = elapsedTime(start, "L")
 
     build_bar_chart(
         tuple([a.blob.sentiment.polarity for a in polarity_sort]),
@@ -179,8 +165,8 @@ def main():
         "Most negative songs",
         labels=[a.title() for a in polarity_sort_neg],
     )
-    start = elapsedTime(start, "M")
 
+    # Most Subjective songs
     build_bar_chart(
         tuple([a.blob.sentiment.subjectivity for a in subjectivity_sort]),
         "Songs",
@@ -188,9 +174,24 @@ def main():
         "Most Subjective songs",
         labels=[a.title() for a in subjectivity_sort],
     )
-    plt.show()
 
-    start = elapsedTime(start, "N")
+
+def generate_genre_report(lyrics_by_genre):
+    blobs_by_genre = []
+    for key in lyrics_by_genre.keys():
+        blobs_by_genre.append([key, TextBlob(lyrics_by_genre[key])])
+
+    polarity_sort = sorted(
+        blobs_by_genre, key=lambda x: x[1].sentiment.polarity, reverse=True
+    )
+
+    build_bar_chart(
+        tuple([a[1].sentiment.polarity for a in polarity_sort]),
+        "Genre",
+        "Polarity",
+        "Polarity by Genre",
+        labels=[a[0].capitalize() for a in polarity_sort],
+    )
 
 
 def elapsedTime(start, label):
@@ -218,8 +219,8 @@ def build_bar_chart(data, ylabel, xlabel, title, labels=None):
     ax.set_xlabel(ylabel)
     ax.set_ylabel(xlabel)
     ax.set_title(title)
-    ax.set_xticks(index)
     if labels:
+        ax.set_xticks(index)
         ax.set_xticklabels(labels, rotation="vertical")
     plt.subplots_adjust(bottom=0.4)
     return
@@ -235,9 +236,10 @@ class LyricsContainer:
         self.genre = genre
 
     def title(self):
-        if "igger" in self._title:
-            self._title = self._title.replace("igge", "****")
-        return self._title
+        if self.genre:
+            return "%s (%s)" % (self._title, self.genre)
+        else:
+            return self._title
 
     def __str__(self):
         return "Title: %s, Genre: %s, URL: %s" % (self.title(), self.genre, self.url)
