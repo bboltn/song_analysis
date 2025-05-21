@@ -1,8 +1,6 @@
 name: Release Approval Check
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, edited]
   issue_comment:
     types: [created, edited, deleted]
   pull_request_review_comment:
