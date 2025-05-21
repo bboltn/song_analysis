@@ -74,9 +74,9 @@ jobs:
 
             core.info(`comment body: ${commentBody}`);
 
-            if (action === 'synchronize') {
+            if (action in ['synchronize', 'opened']) {
               core.setOutput('status', 'failure');
-              core.info(`pr synchronize`);
+              core.info(`pr sync or opened setting to failure`);
               return;
             }
 
