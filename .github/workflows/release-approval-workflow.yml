@@ -63,6 +63,8 @@ jobs:
               action = context.payload.action;
               core.info('action from action');
             }
+            core.info(`action is ${action}`);
+
             const comment = context.payload.comment || context.payload.review;
             const changes = context.payload.changes;
             let commentBody = '';
