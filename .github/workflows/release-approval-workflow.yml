@@ -1,0 +1,90 @@
+name: Release Approval Check
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+  issue_comment:
+    types: [created, edited, deleted]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+jobs:
+  release-approval-check:
+    name: Release Approval Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine Release Approval Status
+        id: check_release_approval
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            // add this script as a required status check in the BRANCH_NAME branch protection rules.
+            // determine if we are merging into BRANCH_NAME, if so, then require release approval
+
+            const BRANCH_NAME = 'master';
+            const BLOCKING_MESSAGE = 'Release approval comment not found. Blocking merge.';
+
+            // get PR values
+            // pull_request_review and pull_request_review_comment have this value directly
+            let pr = context.payload.pull_request;
+
+            // For issue_comments, we need to make a rest call to get this data
+            if (!pr && context.payload.issue?.pull_request) {
+              core.info('PR object not found. Getting PR from REST call.');
+              const prNumber = context.payload.issue.number;
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+              core.info('PR object retrieved from REST.');
+              pr = data;
+            }
+
+            if (!pr) {
+              core.setFailed('PR object is null.');
+              return;
+            }
+
+            core.info(`PR base ref: ${pr.base.ref}`);
+
+            // if branch is not a release branch, early out
+            if (pr.base.ref !== BRANCH_NAME) {
+              core.info(`Skipping check: target branch is "${pr.base.ref}", not "${BRANCH_NAME}".`);
+              return;
+            }
+
+            // get action and comments
+            const action = context.payload.review?.state || context.payload.action;
+            core.info(`Action: "${action}"`);
+            const comment = context.payload.comment || context.payload.review;
+            const commentBody = context.payload.comment?.body || context.payload.review?.body || '';
+            core.info(`Comment Body: "${commentBody}"`);
+
+            // We deleted a release approval
+            if (action === 'deleted' && commentBody.includes('Release Approved')) {
+              core.info('Comment deleted');
+              core.setFailed(BLOCKING_MESSAGE);
+              return;
+            }
+
+            // We created a new release approval
+            if (['created', 'edited', 'commented', 'approved'].includes(action) && commentBody.includes('Release Approved')) {
+              core.info('Comment created, edited, commented, approved');
+              core.notice('Release Manager has approved this PR!');
+              return;
+            }
+
+            // We edited an existing release approval to not be a release approval
+            const previousBody = context.payload.changes?.body?.from;
+            if (action === 'edited' && previousBody?.includes('Release Approved') && !commentBody.includes('Release Approved')) {
+              core.info('Comment edited in a way that removed release approval.');
+              core.setFailed(BLOCKING_MESSAGE);
+              return;
+            }
+
+            core.info('All other checks skipped, so failing.');
+            core.setFailed(BLOCKING_MESSAGE);
