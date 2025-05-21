@@ -112,6 +112,7 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             const status = '${{ steps.check_release_approval.outputs.status }}';
+            core.info(`status ${status}`);
             const prNumber = context.issue.number;
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
@@ -119,6 +120,7 @@ jobs:
               pull_number: prNumber,
             });
             const sha = pr.head.sha;
+            core.info(`sha ${sha}`);
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
