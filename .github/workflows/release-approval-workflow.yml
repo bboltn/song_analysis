@@ -111,6 +111,6 @@ jobs:
               repo: context.repo.repo,
               sha: sha,
               state: status,
-              context: 'QA Approval',
-              description: status === 'success' ? 'QA has approved this PR!' : 'QA approval has been revoked due to comment modification or deletion'
+              context: 'Release Approval Check',
+              description: status === 'success' ? 'Release manager has approved this PR!' : 'Release approval has been revoked due to comment modification or deletion'
             });
