@@ -75,6 +75,12 @@ jobs:
 
             core.info(`comment body: ${commentBody}`);
 
+            if (action === 'synchronize') {
+              core.setOutput('status', 'failure');
+              core.info(`pr synchronize`);
+              return;
+            }
+
             // We deleted a release approval
             if (action === 'deleted' && commentBody.includes('Release Approved')) {
               core.setOutput('status', 'failure');
