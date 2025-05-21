@@ -10,7 +10,6 @@ on:
 
 jobs:
   release-approval-check:
-    name: Release Approval Check
     runs-on: ubuntu-latest
     steps:
       - name: Determine Release Approval Status
