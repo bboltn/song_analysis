@@ -39,6 +39,7 @@ jobs:
 
             if (!pr) {
               core.setFailed("PR object could not be retrieved.");
+              core.info('PR object could not be retrieved.')
               return;
             }
 
@@ -49,6 +50,7 @@ jobs:
               core.notice(msg);
               console.log(msg);
               core.setOutput('status', 'pending');
+              core.info(msg)
               return;
             }
 
@@ -56,8 +58,10 @@ jobs:
             let action;
             if (context.payload.review) {
               action = context.payload.review.state;
+              core.info('action from review state');
             } else {
               action = context.payload.action;
+              core.info('action from action');
             }
             const comment = context.payload.comment || context.payload.review;
             const changes = context.payload.changes;
@@ -67,26 +71,32 @@ jobs:
               commentBody = comment.body;
             }
 
+            core.info(`comment body: ${commentBody}`);
+
             // We deleted a release approval
             if (action === 'deleted' && commentBody.includes('Release Approved')) {
               core.setOutput('status', 'failure');
+              core.info(`comment deleted`);
               return;
             }
 
             // We created a new release approval
             if (['created', 'edited', 'commented', 'approved'].includes(action) && commentBody.includes('Release Approved')) {
               core.setOutput('status', 'success');
+              core.info(`comment added/edited/etc`);
               return;
             }
 
             // We edited an existing release approval to not be a release approval
             if (action === 'edited' && changes && changes.body && changes.body.from && !commentBody.includes('Release Approved') && changes.body.from.includes('Release Approved')) {
               core.setOutput('status', 'failure');
+              core.info(`comment edited in way that no longer approves`);
               return;
             }
 
             // Default to pending
             core.setOutput('status', 'pending');
+            core.info(`everything else skipped, setting to pending`);
 
       - name: Update Commit Status
         if: steps.check_release_approval.outputs.status != 'pending'
