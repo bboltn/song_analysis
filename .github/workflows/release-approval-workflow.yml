@@ -43,6 +43,7 @@ jobs:
 
             if (!pr) {
               core.setFailed('PR object is null.');
+              core.setOutput('status', 'failure');
               return;
             }
 
@@ -51,6 +52,7 @@ jobs:
             // if branch is not a release branch, early out
             if (pr.base.ref !== BRANCH_NAME) {
               core.info(`Skipping check: target branch is "${pr.base.ref}", not "${BRANCH_NAME}".`);
+              core.setOutput('status', 'pending');
               return;
             }
 
@@ -65,6 +67,7 @@ jobs:
             if (action === 'deleted' && commentBody.includes('Release Approved')) {
               core.info('Comment deleted');
               core.setFailed(BLOCKING_MESSAGE);
+              core.setOutput('status', 'failure');
               return;
             }
 
@@ -72,6 +75,7 @@ jobs:
             if (['created', 'edited', 'commented', 'approved'].includes(action) && commentBody.includes('Release Approved')) {
               core.info('Comment created, edited, commented, approved');
               core.notice('Release Manager has approved this PR!');
+              core.setOutput('status', 'success');
               return;
             }
 
@@ -80,8 +84,33 @@ jobs:
             if (action === 'edited' && previousBody?.includes('Release Approved') && !commentBody.includes('Release Approved')) {
               core.info('Comment edited in a way that removed release approval.');
               core.setFailed(BLOCKING_MESSAGE);
+              core.setOutput('status', 'failure');
               return;
             }
 
-            core.info('All other checks skipped, so failing.');
-            core.setFailed(BLOCKING_MESSAGE);
+            core.info('All other checks skipped - setting to pending.');
+            //core.setFailed(BLOCKING_MESSAGE);
+            core.setOutput('status', 'pending');
+
+      - name: Update Commit Status
+        if: steps.check_release_approval.outputs.status != 'pending'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const status = '${{ steps.check_release_approval.outputs.status }}';
+            const prNumber = context.issue.number;
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            const sha = pr.head.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: sha,
+              state: status,
+              context: 'QA Approval',
+              description: status === 'success' ? 'QA has approved this PR!' : 'QA approval has been revoked due to comment modification or deletion'
+            });
